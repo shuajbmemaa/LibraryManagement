@@ -1,0 +1,121 @@
+.login-wrapper {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-size: cover;
+    background-position: center;
+    background: radial-gradient(circle, rgba(25, 32, 94, 1) 0%, rgba(107, 31, 45, 1) 100%);
+}
+
+.login-card {
+    width: 100%;
+    padding: 100px;
+    max-width: 600px;
+    background: #1e1e1e;
+    padding: 150px;
+    border-radius: 16px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+}
+
+
+.btns {
+    display: flex;
+    flex-direction: column;
+    max-width: 100%;
+    width: 100%;
+
+    button {
+        width: 100%;
+    }
+}
+
+.register-btn {
+    width: 100%;
+    display: inline-block;
+    text-align: center;
+    padding: 12px 14px;
+    margin-top: 8px;
+    border-radius: 10px;
+    background-color: #ff4d4f;
+    color: white;
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.register-btn:hover {
+    background-color: #e33b3f;
+}
+
+
+.form-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    width: 100%;
+}
+
+.login-card h2 {
+    margin-bottom: 24px;
+    font-size: 24px;
+    text-align: center;
+    color: #ffffff;
+}
+
+.login-card input {
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    border-radius: 10px;
+    border: 1px solid #333;
+    background-color: #121212;
+    color: #fff;
+    font-size: 14px;
+}
+
+.login-card input::placeholder {
+    color: #888;
+}
+
+.login-card input:focus {
+    outline: none;
+    border-color: #646cff;
+    box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.3);
+}
+
+.login-card button {
+    width: 100%;
+    margin-top: 8px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: none;
+    background-color: #646cff;
+    color: white;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.login-card button:hover {
+    background-color: #535bf2;
+}
+
+.login-card button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.error {
+    background: #3b1212;
+    color: #ffb4b4;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    text-align: center;
+}

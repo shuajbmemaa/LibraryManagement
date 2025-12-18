@@ -1,0 +1,21 @@
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.action-wrapper {
+  display: flex;
+  gap: 8px;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
