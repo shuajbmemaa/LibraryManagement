@@ -27,8 +27,10 @@ export const bookColumns = (handleEdit, handleDelete) => [
     },
     {
         title: 'Actions',
+        dataIndex: 'actions',
         key: 'actions',
         width: 100,
+        fixed: 'right',
         render: (text, record) => (
             <div className="action-wrapper">
                 <Button type="primary" onClick={() => handleEdit(record)}> <EditOutlined /> </Button>

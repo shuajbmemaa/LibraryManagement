@@ -304,3 +304,4 @@ C:\Users\Pulse Electronics\LibraryManagement\backend\LibraryManagementAPI\obj\De
 C:\Users\Pulse Electronics\LibraryManagement\backend\LibraryManagementAPI\obj\Debug\net8.0\LibraryManagementAPI.pdb
 C:\Users\Pulse Electronics\LibraryManagement\backend\LibraryManagementAPI\obj\Debug\net8.0\LibraryManagementAPI.genruntimeconfig.cache
 C:\Users\Pulse Electronics\LibraryManagement\backend\LibraryManagementAPI\obj\Debug\net8.0\ref\LibraryManagementAPI.dll
+C:\Users\Pulse Electronics\LibraryManagement\Backend\LibraryManagementAPI\obj\Debug\net8.0\LibraryManagementAPI.sourcelink.json

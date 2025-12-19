@@ -19,7 +19,7 @@ export function AIModule() {
         askAi(values.message).then((response) => {
             console.log('AI response: ', response);
             setQuestionRefLoader(prev => prev.filter(key => key !== tempKey));
-            setConvo((prev) => [...prev, { role: "ai", content: response.answer }]);
+            setConvo((prev) => [...prev, { role: "ai", content: response?.answer }]);
         }).catch((error) => {
             console.error("Error communicating with AI:", error);
             setConvo((prev) => [...prev, { role: "ai", content: "Sorry, the request wasn't properly processed." }]);
@@ -36,7 +36,7 @@ export function AIModule() {
     return (
         <>
             <div className="ai-wrapper">
-                <div className="ai-icon" onClick={() => setOpen((prev) => !prev)}>
+                <div className={`ai-icon ${open ? 'open' : ''}`} onClick={() => setOpen((prev) => !prev)}>
                     <OpenAIOutlined style={{ fontSize: '32px', color: '#fff' }} />
                 </div>
                 <div className="ai-content" style={{display: open ? 'flex' : 'none'}}>
@@ -57,13 +57,16 @@ export function AIModule() {
                     <div className="conversation-wrapper">
                         <div className="conversation" ref={ref}>
                             {convo.map((msg, index) => (
-                                <div className={`message-wrapper ${msg.role}`}>
+                                <div className={`message-wrapper ${msg.role}`} key={index}>
                                     <div key={index} className={`message`}>
                                         {msg.content}
                                     </div>
                                     {msg.role === 'user' && questionRefLoader.includes(msg.key) && (
                                         <Spin />
                                     )}
+                                    <div className="anchor">
+                                        <div className="anchor-hidder"></div>
+                                    </div>
                                 </div>
 
                             ))}

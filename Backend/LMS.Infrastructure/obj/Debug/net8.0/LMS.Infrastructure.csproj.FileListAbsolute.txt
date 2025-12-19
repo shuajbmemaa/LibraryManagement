@@ -28,3 +28,4 @@ C:\Users\Pulse Electronics\LibraryManagement\backend\LMS.Infrastructure\obj\Debu
 C:\Users\Pulse Electronics\LibraryManagement\backend\LMS.Infrastructure\obj\Debug\net8.0\refint\LMS.Infrastructure.dll
 C:\Users\Pulse Electronics\LibraryManagement\backend\LMS.Infrastructure\obj\Debug\net8.0\LMS.Infrastructure.pdb
 C:\Users\Pulse Electronics\LibraryManagement\backend\LMS.Infrastructure\obj\Debug\net8.0\ref\LMS.Infrastructure.dll
+C:\Users\Pulse Electronics\LibraryManagement\Backend\LMS.Infrastructure\obj\Debug\net8.0\LMS.Infrastructure.sourcelink.json

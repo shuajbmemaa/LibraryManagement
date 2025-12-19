@@ -1,0 +1,26 @@
+.filters-container {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    flex-wrap: wrap;
+
+    .filter-item {
+        width: 215px;
+
+        .ant-select {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 1322px) {
+        .filter-item {
+            flex: 0 0 calc(50% - 10px);
+        }
+    }
+
+    @media (max-width: 750px) {
+        .filter-item {
+            flex: 0 0 100%;
+        }
+    }
+}

@@ -10,8 +10,8 @@ function AddBookModal ({open, onCancel, finished}) {
     const onFinish = (values) => {
         setLoading(true);
         createBook(values).then(() => {
-            form.resetFields();
             finished();
+            form.resetFields();
             setLoading(false);
         }).catch((error) => {
             console.error("Error creating book:", error);
@@ -25,7 +25,6 @@ function AddBookModal ({open, onCancel, finished}) {
                 labelCol={{ span: 6 }}
                 wrapperCol={{ span: 14 }}
                 layout="horizontal"
-                autoComplete={false}
                 form={form}
                 name="control-hooks"
                 onFinish={onFinish}

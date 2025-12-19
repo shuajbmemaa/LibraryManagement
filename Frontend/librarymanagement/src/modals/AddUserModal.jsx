@@ -25,7 +25,6 @@ function AddUserModal ({open, onCancel, finished}) {
                 labelCol={{ span: 6 }}
                 wrapperCol={{ span: 14 }}
                 layout="horizontal"
-                autoComplete={false}
                 form={form}
                 name="control-hooks"
                 onFinish={onFinish}

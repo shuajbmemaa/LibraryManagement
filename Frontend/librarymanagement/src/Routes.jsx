@@ -11,26 +11,23 @@ export default function AllRoutes () {
     
     return (
         <Routes>
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-
-    <Route 
-        path="/dashboard" 
-        element={
-            <ProtectedRoute>
-                <Dashboard />
-            </ProtectedRoute>
-        } 
-    />
-
-    <Route 
-        path="/admin" 
-        element={
-            <ProtectedRoute adminOnly={true}>
-                <Dashboard />
-            </ProtectedRoute>
-        } 
-    />
+            {!user ?
+            (
+                <>
+                    <Route path="/" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/*" element={<Navigate to="/" />} />
+                </>
+            ) : (
+                <>
+                    <Route path="/dashboard" element={
+                        <ProtectedRoute>
+                            <Dashboard />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/*" element={<Navigate to="/dashboard" />} />
+                </>
+            )}
         </Routes>
     )
 }

@@ -32,3 +32,4 @@ C:\Users\Pulse Electronics\LibraryManagement\backend\LMS.Application\obj\Debug\n
 C:\Users\Pulse Electronics\LibraryManagement\backend\LMS.Application\obj\Debug\net8.0\refint\LMS.Application.dll
 C:\Users\Pulse Electronics\LibraryManagement\backend\LMS.Application\obj\Debug\net8.0\LMS.Application.pdb
 C:\Users\Pulse Electronics\LibraryManagement\backend\LMS.Application\obj\Debug\net8.0\ref\LMS.Application.dll
+C:\Users\Pulse Electronics\LibraryManagement\Backend\LMS.Application\obj\Debug\net8.0\LMS.Application.sourcelink.json

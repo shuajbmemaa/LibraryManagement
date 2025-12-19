@@ -2,9 +2,10 @@
     position: fixed;
     bottom: 20px;
     right: 20px;
+    z-index: 3;
 
     .ai-icon {
-        z-index: 1;
+        z-index: 2;
         position: absolute;
         bottom: 10px;
         right: 10px;
@@ -17,10 +18,17 @@
         align-items: center;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         cursor: pointer;
-        transition: background-color 0.3s ease;
+
 
         span {
             color: #fff;
+            transition: .2s ease-in-out;
+        }
+
+        &.open {
+            span {
+                transform: rotate(180deg);
+            }
         }
     }
 
@@ -97,6 +105,7 @@
                 width: 100%;
 
                 .message-wrapper {
+                    position: relative;
                     align-self: flex-end;
                     display: flex;
                     align-items: center;
@@ -111,6 +120,32 @@
                         padding: 8px 12px;
                         border-radius: 8px;
                         word-wrap: break-word;
+                        position: relative;
+                        z-index: 2;
+                    }
+
+                    .anchor {
+                        height: 20px;
+                        width: 15px;
+                        bottom: 0;
+                        left: calc(100% - 7px);
+                        position: absolute;
+                        z-index: 1;
+                        background-color: rgb(44, 181, 22);
+                        overflow: hidden;
+                        border: none;
+                        outline: none;
+
+
+                        .anchor-hidder {
+                            width: 50px;
+                            height: 50px;
+                            border-radius: 50%;
+                            background-color: #fff;
+                            position: absolute;
+                            bottom: -36%;
+                            left: 47%;
+                        }
                     }
 
                     &.ai {
@@ -119,6 +154,17 @@
                         .message {
                             background-color: rgb(0, 107, 165);
                         }
+
+                        .anchor {
+                            background-color: rgb(0, 107, 165);
+                            left: auto;
+                            right: calc(100% - 7px);
+
+                            .anchor-hidder {
+                                left: auto;
+                                right: 47%;
+                            }
+                        }
                     }
 
                     &.user {
@@ -126,6 +172,7 @@
                             background-color: rgb(44, 181, 22);
                         }
                     }
+
                 }
             }
         }

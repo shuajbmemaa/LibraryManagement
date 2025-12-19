@@ -34,12 +34,11 @@ function EditBookModal ({dataToEdit, open, onCancel, finished}) {
         });
     }
     return (
-        <Modal title="Edit Book" open={open} footer={null} onCancel={() => onCancel()} destroyOnHidden={true}>
+        <Modal title="Edit Book" open={open} footer={null} onCancel={() => onCancel()} destroyOnHidden={true} forceRender>
             <Form
                 labelCol={{ span: 6 }}
                 wrapperCol={{ span: 14 }}
                 layout="horizontal"
-                autoComplete={false}
                 form={form}
                 name="control-hooks"
                 onFinish={onFinish}

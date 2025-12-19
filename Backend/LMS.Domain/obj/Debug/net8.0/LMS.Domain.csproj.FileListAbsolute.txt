@@ -26,3 +26,4 @@ C:\Users\Pulse Electronics\LibraryManagement\backend\LMS.Domain\obj\Debug\net8.0
 C:\Users\Pulse Electronics\LibraryManagement\backend\LMS.Domain\obj\Debug\net8.0\LMS.Domain.pdb
 C:\Users\Pulse Electronics\LibraryManagement\backend\LMS.Domain\obj\Debug\net8.0\LMS.Domain.genruntimeconfig.cache
 C:\Users\Pulse Electronics\LibraryManagement\backend\LMS.Domain\obj\Debug\net8.0\ref\LMS.Domain.dll
+C:\Users\Pulse Electronics\LibraryManagement\Backend\LMS.Domain\obj\Debug\net8.0\LMS.Domain.sourcelink.json

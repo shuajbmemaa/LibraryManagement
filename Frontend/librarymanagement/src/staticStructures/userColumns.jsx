@@ -21,8 +21,10 @@ export const userColumns = (handleEdit, handleDelete) => [
     },
     {
         title: 'Actions',
+        dataIndex: 'actions',
         key: 'actions',
         width: 100,
+        fixed: 'right',
         render: (text, record) => (
             <div className="action-wrapper">
                 <Button type="primary" danger onClick={() => handleDelete(record)}> <DeleteOutlined /> </Button>

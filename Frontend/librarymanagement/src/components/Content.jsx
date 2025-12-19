@@ -8,6 +8,8 @@ import { PlusOutlined } from "@ant-design/icons";
 import AddUserModal from "../modals/AddUserModal";
 import AddBookModal from "../modals/AddBookModal";
 import EditBookModal from "../modals/EditBookModal";
+import Filters from "./Filters";
+import "../design/Table.scss";
 
 export function Content ({active}) {
     const [activeColumns, setActiveColumns] = useState([]);
@@ -56,27 +58,31 @@ export function Content ({active}) {
     const allBooks = bookColumns(handleEdit, handleDelete);
     const allUsers = userColumns(handleEdit, handleDelete);
 
-    const fetchData = () => {
+    const fetchData = (filters) => {
         setLoading(true);
         setData([]);
-        if (active === 'books') {
+        if (active === 'books') {            
             setActiveColumns(allBooks);
-            getAllBooks().then(
+            getAllBooks(filters || {}).then(
             (books) => {
                 setLoading(false);
-                setData(books);
+                setData(books?.map((book) => ({...book, key: book.id})));
             }).catch(() => {
                 setLoading(false);
             });
         } else if (active === 'users') {
             setActiveColumns(allUsers);
-            getAllUsers().then((users) => {
+            getAllUsers(filters || {}).then((users) => {
                 setLoading(false);
-                setData(users);
+                setData(users?.map((user) => ({...user, key: user.id})));
             }).catch(() => {
                 setLoading(false);
             });
         }
+    }
+
+    const filterData = (filters) => {
+        fetchData(filters);       
     }
 
     useEffect(() => {
@@ -90,11 +96,7 @@ export function Content ({active}) {
             {<EditBookModal dataToEdit={dataToEdit} open={isEditBookModalOpen} onCancel={() => setIsEditBookModalOpen(false)} finished={() => {fetchData(); setIsEditBookModalOpen(false);}}/>}
             {active === 'books' ? <h2> Books </h2> :  active === 'users' ? <h2> Users </h2> : <></>}
             <div className="filters">
-                <Input.Search
-                    placeholder="Search..."
-                    onSearch={(value) => {}}
-                    style={{ width: 200 }}
-                />
+                {active === 'books' ? <Filters filterData={(data) => filterData(data)} /> : <div></div>}
                 {active === 'users' ? (
                     <Button type="primary" icon={<PlusOutlined />} onClick={() => {setIsAddUserModalOpen(true);}}>
                         Add User
@@ -109,7 +111,7 @@ export function Content ({active}) {
                 <Table
                     columns={activeColumns}
                     dataSource={data}
-                    loading={loading ? <Spin /> : false}
+                    loading={loading}
                 />
             </div>
         </>
