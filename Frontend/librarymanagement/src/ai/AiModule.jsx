@@ -19,7 +19,7 @@ export function AIModule() {
         askAi(values.message).then((response) => {
             console.log('AI response: ', response);
             setQuestionRefLoader(prev => prev.filter(key => key !== tempKey));
-            setConvo((prev) => [...prev, { role: "ai", content: response?.answer }]);
+            setConvo((prev) => [...prev, { role: "ai", content: response?.message }]);
         }).catch((error) => {
             console.error("Error communicating with AI:", error);
             setConvo((prev) => [...prev, { role: "ai", content: "Sorry, the request wasn't properly processed." }]);

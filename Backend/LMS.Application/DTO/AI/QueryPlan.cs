@@ -8,5 +8,6 @@
         public string? OrderDirection { get; set; }
         public List<string>? Select { get; set; }
         public int? Limit { get; set; }
+        public ChatMessagePlan Chat { get; set; } = new();
     }
 }

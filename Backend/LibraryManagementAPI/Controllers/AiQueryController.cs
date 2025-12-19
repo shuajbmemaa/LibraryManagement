@@ -22,31 +22,14 @@ namespace LibraryManagementAPI.Controllers
             if (plan == null)
                 return BadRequest("Su bo format mire.");
 
-            var result = await _oaQueryService.ExecuteQueryPlanAsync(plan);
+            var (data, count) = await _oaQueryService.ExecuteQueryPlanAsync(plan);
 
-            var list = result as IEnumerable<object>;
-            
-            var count = list?.Count() ?? 0;
-
-            if (count == 0)
-            {
-                return Ok(new
-                {
-                    answer = "No results found.",
-                    raw = result
-                });
-            }
-
-            var humanAnswer = await _oaQueryService.FormatResultAsync(
-                req.Question,
-                plan.Entity,
-                result,
+            var message = ChatResponseBuilder.Build(
+                plan.Chat,
+                data,
                 count
             );
-
-            return Ok(new{
-                answer = humanAnswer,
-                raw = result});
+            return Ok(new{message, data});
         }
     }
 }

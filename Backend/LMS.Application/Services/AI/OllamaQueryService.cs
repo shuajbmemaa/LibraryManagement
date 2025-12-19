@@ -1,6 +1,7 @@
 ﻿using LMS.Application.DTO.AI;
 using LMS.Domain.Entities;
 using LMS.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using System.Linq.Dynamic.Core;
 using System.Linq.Expressions;
 using System.Net.Http.Json;
@@ -15,88 +16,69 @@ namespace LMS.Application.Services.AI
         private readonly ApplicationDbContext _dbContext;
         private const string Url = "http://localhost:11434/v1/chat/completions";
 
-        private const string SystemPrompt = @"
-You are a Query Planner AI. 
-Your job is to convert natural language questions into a VALID QueryPlan JSON used by a .NET API.
+        private const string SystemPrompt = """
+You are a Chat Query Planner AI inside a Library Management System.
 
-You MUST follow these rules strictly:
+You MUST output ONLY valid JSON.
 
-1) Always output ONLY valid JSON. No text, no explanations, no markdown.
-2) The JSON structure MUST be:
+JSON structure:
 
 {
-  ""Entity"": ""..."",
-  ""Filter"": [],
-  ""OrderBy"": null,
-  ""OrderDirection"": null,
-  ""Select"": null,
-  ""Limit"": null
-}
-
-3) Entity MUST be one of:
-- ""ApplicationUser""
-- ""Book""
-
-4) Filter MUST be a JSON array of objects:
-[
-  {
-    ""Field"": ""PropertyName"",
-    ""Operator"": ""eq|contains|startswith|endswith|gt|lt|gte|lte|in"",
-    ""Value"": ""something""
+  "Entity": "",
+  "Filter": [],
+  "OrderBy": null,
+  "OrderDirection": null,
+  "Select": null,
+  "Limit": null,
+  "Chat": {
+    "Intro": "",
+    "ItemTemplate": "",
+    "Outro": ""
   }
-]
-
-If no filters are needed → return an empty array: []
-
-5) OrderBy MUST be a REAL property name of the entity.
-NEVER set OrderBy to ""asc"", ""desc"", ""+UserName"", or anything invalid.
-
-If user does not request sorting → OrderBy = null and OrderDirection = null.
-
-6) Select must be either:
-- null → return full entity
-- Array of existing property names
-
-7) Limit must be either:
-- null
-- number (example: 10)
-
-8) NEVER guess fields that don't exist.
-Allowed ApplicationUser fields:
-- Id, UserName, Name, Email, CreatedAt, IsDeleted
-
+}
 Allowed Book fields:
-- Id, Title, Author, Genre, ReadingStatus, UserId, CreatedBy, CreatedAt, IsDeleted
+Id, Title, Author, Genre, ReadingStatus, UserId, CreatedAt, IsDeleted
 
-9) ONLY return JSON. No markdown. No code blocks.
+Allowed User fields:
+Id, UserName, Name, Email, CreatedAt, IsDeleted
 
-EXAMPLES:
+Rules:
+- Entity must be ApplicationUser or Book
+- NEVER invent fields
+- NEVER include real values
+Select MUST be:
+- null
+OR
+- an array of strings (example: ["Title", "Author"])
+NEVER return empty string, object, or comma separated string.
 
-User: ""show me all users""
-Return:
-{
-  ""Entity"": ""ApplicationUser"",
-  ""Filter"": [],
-  ""OrderBy"": null,
-  ""OrderDirection"": null,
-  ""Select"": null,
-  ""Limit"": null
+- Chat style, friendly, short
+- ItemTemplate MUST use placeholders matching the entity fields, e.g., {{Title}} or {{Name}}.
+- Select should include all fields used in the ItemTemplate.
+
+Examples:
+User: "Find books by Orwell"
+JSON: {
+  "Entity": "Book",
+  "Filter": [{"Field": "Author", "Operator": "contains", "Value": "Orwell"}],
+  "Chat": {
+    "Intro": "I found these books by Orwell:",
+    "ItemTemplate": "- {{Title}} (Genre: {{Genre}})",
+    "Outro": "Total: {{count}} books."
+  }
 }
 
-User: ""all books with reading status reading""
-Return:
-{
-  ""Entity"": ""Book"",
-  ""Filter"": [
-    { ""Field"": ""ReadingStatus"", ""Operator"": ""eq"", ""Value"": ""Reading"" }
-  ],
-  ""OrderBy"": null,
-  ""OrderDirection"": null,
-  ""Select"": null,
-  ""Limit"": null
+User: "Who is the user with email test@test.com?"
+JSON: {
+  "Entity": "ApplicationUser",
+  "Filter": [{"Field": "Email", "Operator": "eq", "Value": "test@test.com"}],
+  "Chat": {
+    "Intro": "Here is the user profile:",
+    "ItemTemplate": "Name: {{Name}}, Username: {{UserName}}",
+    "Outro": ""
+  }
 }
-";
-
+""";
 
         public OllamaQueryService(HttpClient httpClient, ApplicationDbContext dbContext)
         {
@@ -114,7 +96,12 @@ Return:
             new { role = "system", content = SystemPrompt },
             new { role = "user", content = question }
         },
-                stream = false
+                stream = false,
+                options = new
+                {
+                    num_predict = 256,
+                    temperature = 0.1
+                }
             };
 
             var response = await _http.PostAsJsonAsync(Url, body);
@@ -154,12 +141,63 @@ Return:
                     .Replace("```", "")
                     .Trim();
 
-                var plan = JsonSerializer.Deserialize<QueryPlan>(cleanedContent, options);
+                var raw = JsonSerializer.Deserialize<RawQueryPlan>(cleanedContent, options);
 
-                if (plan == null)
+                if (raw == null)
                     return null;
 
-                plan.Filter ??= new List<QueryFilter>();
+                var plan = new QueryPlan
+                {
+                    Entity = raw.Entity ?? "",
+                    OrderBy = raw.OrderBy,
+                    OrderDirection = raw.OrderDirection,
+                    Chat = raw.Chat ?? new ChatMessagePlan(),
+                    Filter = new List<QueryFilter>()
+                };
+
+                if (raw.Filter is JsonElement f && f.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var el in f.EnumerateArray())
+                    {
+                        if (el.ValueKind == JsonValueKind.Object)
+                        {
+                            try
+                            {
+                                var filter = el.Deserialize<QueryFilter>(options);
+                                if (filter != null)
+                                    plan.Filter.Add(filter);
+                            }
+                            catch { }
+                        }
+                    }
+                }
+
+                if (raw.Select is JsonElement s)
+                {
+                    if (s.ValueKind == JsonValueKind.Array)
+                    {
+                        plan.Select = s.EnumerateArray()
+                            .Where(x => x.ValueKind == JsonValueKind.String)
+                            .Select(x => x.GetString()!)
+                            .ToList();
+                    }
+                    else if (s.ValueKind == JsonValueKind.String)
+                    {
+                        plan.Select = s.GetString()!
+                            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                            .Select(x => x.Trim())
+                            .ToList();
+                    }
+                }
+
+                if (raw.Limit is JsonElement l)
+                {
+                    if (l.ValueKind == JsonValueKind.Number)
+                        plan.Limit = l.GetInt32();
+                    else if (l.ValueKind == JsonValueKind.String &&
+                             int.TryParse(l.GetString(), out var lim))
+                        plan.Limit = lim;
+                }
 
                 return plan;
             }
@@ -171,52 +209,7 @@ Return:
             }
         }
 
-        public async Task<string> FormatResultAsync(string question, string entity, object data, int count)
-            {
-            var prompt = $"""
-You are an assistant inside a Library Management System.
-
-User question:
-"{question}"
-
-Entity: {entity}
-Total results count: {count}
-
-Database result (JSON):
-{JsonSerializer.Serialize(data)}
-
-Rules:
-- There ARE results (count > 0)
-- DO NOT say "No results found"
-- Answer in clear, short, human-friendly sentences
-- Summarize the list
-- Mention the total count
-- For books: show Title, Author, ReadingStatus
-- For users: show Name and Email
-""";
-
-            var body = new
-            {
-                model = "gemma3:1b",
-                messages = new[]
-                {
-            new { role = "user", content = prompt }
-        }
-            };
-
-            var res = await _http.PostAsJsonAsync(Url, body);
-            res.EnsureSuccessStatusCode();
-
-            using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
-            return doc.RootElement
-                .GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString() ?? "";
-        }
-
-
-        public async Task<object> ExecuteQueryPlanAsync(QueryPlan plan)
+        public async Task<(List<object> Data, int Count)> ExecuteQueryPlanAsync(QueryPlan plan)
         {
             IQueryable queryable;
 
@@ -233,8 +226,8 @@ Rules:
 
             queryable = mappedEntity switch
             {
-                "ApplicationUser" => _dbContext.Set<ApplicationUser>(),
-                "Book" => _dbContext.Set<Domain.Entities.Book>(),
+                "ApplicationUser" => _dbContext.Set<ApplicationUser>().AsNoTracking(),
+                "Book" => _dbContext.Set<Domain.Entities.Book>().AsNoTracking(),
                 _ => throw new ArgumentException($"Entity {plan.Entity} not supported.")
             };
 
@@ -375,7 +368,8 @@ Rules:
                 queryable = queryable.Select($"new({fields})");
             }
 
-            return await queryable.ToDynamicListAsync();
+            var list = await queryable.Cast<object>().ToListAsync();
+            return (list, list.Count);
         }
     }
 }
