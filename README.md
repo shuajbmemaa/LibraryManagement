@@ -60,5 +60,5 @@ Admins have full control over users and books across the platform.
 ### Frontend
 - React
 - React Router
-- Axios / Fetch API
+- Axios
 - Modern component-based architecture
