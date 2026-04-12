@@ -246,7 +246,7 @@ namespace LMS.Application.Services.AI
             };
         }
 
-        private IQueryable ApplyOrdering(IQueryable query, string field, string? direction)
+        private IQueryable ApplyOrdering(IQueryable query,  string field, string? direction)
         {
             var propName = PropertyMap.GetValueOrDefault(field, field);
             bool isDescending = direction?.Equals("desc", StringComparison.OrdinalIgnoreCase) ?? false;
