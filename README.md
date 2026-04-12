@@ -33,7 +33,7 @@ Admins have full control over users and books across the platform.
 
 ### AI Integration
 - **Ollama**
-- **Model:** `gemma:3 1b`
+- **Model:** `gemma:3 12b`
 - Natural language querying over library data
 
 ---
