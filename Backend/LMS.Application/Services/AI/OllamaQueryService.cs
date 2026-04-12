@@ -2,8 +2,8 @@
 using LMS.Domain.Entities;
 using LMS.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 using System.Linq.Dynamic.Core;
-using System.Linq.Expressions;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
@@ -14,71 +14,17 @@ namespace LMS.Application.Services.AI
     {
         private readonly HttpClient _http;
         private readonly ApplicationDbContext _dbContext;
-        private const string Url = "http://localhost:11434/v1/chat/completions";
+        private const string OllamaEndpoint = "http://localhost:11434/v1/chat/completions";
 
-        private const string SystemPrompt = """
-You are a Chat Query Planner AI inside a Library Management System.
+        private static readonly Dictionary<string, string> PropertyMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+      { "reading_status", "ReadingStatus" }, { "title", "Title" }, { "author", "Author" },
+      { "genre", "Genre" }, { "user_id", "UserId" }, { "id", "Id" },
+      { "created_at", "CreatedAt" }, { "is_deleted", "IsDeleted" }, { "username", "UserName" },
+      { "name", "Name" }, { "email", "Email" }
+    };
 
-You MUST output ONLY valid JSON.
-
-JSON structure:
-
-{
-  "Entity": "",
-  "Filter": [],
-  "OrderBy": null,
-  "OrderDirection": null,
-  "Select": null,
-  "Limit": null,
-  "Chat": {
-    "Intro": "",
-    "ItemTemplate": "",
-    "Outro": ""
-  }
-}
-Allowed Book fields:
-Id, Title, Author, Genre, ReadingStatus, UserId, CreatedAt, IsDeleted
-
-Allowed User fields:
-Id, UserName, Name, Email, CreatedAt, IsDeleted
-
-Rules:
-- Entity must be ApplicationUser or Book
-- NEVER invent fields
-- NEVER include real values
-Select MUST be:
-- null
-OR
-- an array of strings (example: ["Title", "Author"])
-NEVER return empty string, object, or comma separated string.
-
-- Chat style, friendly, short
-- ItemTemplate MUST use placeholders matching the entity fields, e.g., {{Title}} or {{Name}}.
-- Select should include all fields used in the ItemTemplate.
-
-Examples:
-User: "Find books by Orwell"
-JSON: {
-  "Entity": "Book",
-  "Filter": [{"Field": "Author", "Operator": "contains", "Value": "Orwell"}],
-  "Chat": {
-    "Intro": "I found these books by Orwell:",
-    "ItemTemplate": "- {{Title}} (Genre: {{Genre}})",
-    "Outro": "Total: {{count}} books."
-  }
-}
-
-User: "Who is the user with email test@test.com?"
-JSON: {
-  "Entity": "ApplicationUser",
-  "Filter": [{"Field": "Email", "Operator": "eq", "Value": "test@test.com"}],
-  "Chat": {
-    "Intro": "Here is the user profile:",
-    "ItemTemplate": "Name: {{Name}}, Username: {{UserName}}",
-    "Outro": ""
-  }
-}
-""";
+        private const string SystemPrompt = "You are the LMS Assistant, a helpful and witty library AI. \r\n\r\n### CORE DIRECTIVE:\r\n- You must ALWAYS respond in JSON.\r\n- If the user is chatting (greeting, joking, or asking non-database questions), set all query fields to null and put the response in Chat.Intro.\r\n- If the user is searching, fill out the Entity, Filter, and Select fields.\r\n\r\n### JSON SCHEMA:\r\n{\r\n  \"Entity\": \"Book\" | \"ApplicationUser\" | null,\r\n  \"Filter\": [{ \"Field\": \"string\", \"Operator\": \"string\", \"Value\": \"any\" }] | null,\r\n  \"OrderBy\": \"string\" | null,\r\n  \"OrderDirection\": \"asc\" | \"desc\" | null,\r\n  \"Select\": [\"string\"] | null,\r\n  \"Limit\": number | null,\r\n  \"Chat\": {\r\n    \"Intro\": \"string\",\r\n    \"ItemTemplate\": \"string\",\r\n    \"Outro\": \"string\"\r\n  }\r\n}\r\n\r\n### DATABASE WORLD:\r\n- **Book**: Title, Author, Genre, ReadingStatus (WantToRead, Reading, Completed)\r\n- **ApplicationUser**: Name, UserName, Email\r\n\r\n### BEHAVIOR EXAMPLES:\r\n\r\nUser: \"Hi! Who are you?\"\r\nJSON:\r\n{\r\n  \"Entity\": null,\r\n  \"Filter\": null,\r\n  \"Chat\": {\r\n    \"Intro\": \"I'm Gemini, your friendly neighborhood Library Assistant. I can find books, check user profiles, or just chat about literature! How can I help?\",\r\n    \"ItemTemplate\": \"\",\r\n    \"Outro\": \"\"\r\n  }\r\n}\r\n\r\nUser: \"I'm looking for some horror books.\"\r\nJSON:\r\n{\r\n  \"Entity\": \"Book\",\r\n  \"Filter\": [{ \"Field\": \"Genre\", \"Operator\": \"contains\", \"Value\": \"Horror\" }],\r\n  \"Chat\": {\r\n    \"Intro\": \"Spooky choice! I found these horror titles for you:\",\r\n    \"ItemTemplate\": \"- {{Title}} by {{Author}}\",\r\n    \"Outro\": \"Hope you have the lights on! Found {{count}} books.\"\r\n  }\r\n}\r\n\r\nUser: \"That's cool, thanks!\"\r\nJSON:\r\n{\r\n  \"Entity\": null,\r\n  \"Filter\": null,\r\n  \"Chat\": {\r\n    \"Intro\": \"You're very welcome! Let me know if you need anything else.\",\r\n    \"ItemTemplate\": \"\",\r\n    \"Outro\": \"\"\r\n  }\r\n}";
 
         public OllamaQueryService(HttpClient httpClient, ApplicationDbContext dbContext)
         {
@@ -90,279 +36,42 @@ JSON: {
         {
             var body = new
             {
-                model = "gemma3:1b",
-                messages = new[]
-                {
-            new { role = "system", content = SystemPrompt },
-            new { role = "user", content = question }
-        },
+                model = "gemma3:12b",
+                messages = new[] { new { role = "system", content = SystemPrompt }, new { role = "user", content = question } },
                 stream = false,
-                options = new
-                {
-                    num_predict = 256,
-                    temperature = 0.1
-                }
+                options = new { num_predict = 256, temperature = 0.3 }
             };
 
-            var response = await _http.PostAsJsonAsync(Url, body);
+            var response = await _http.PostAsJsonAsync(OllamaEndpoint, body);
             response.EnsureSuccessStatusCode();
 
-            var rawResponse = await response.Content.ReadAsStringAsync();
-
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
-            try
-            {
-                using var doc = JsonDocument.Parse(rawResponse);
-                var root = doc.RootElement;
-
-                if (!root.TryGetProperty("choices", out var choices) ||
-                    choices.ValueKind != JsonValueKind.Array ||
-                    !choices.EnumerateArray().Any())
-                {
-                    return null;
-                }
-
-                var content = choices
-                    .EnumerateArray()
-                    .First()
-                    .GetProperty("message")
-                    .GetProperty("content")
-                    .GetString();
-
-                if (string.IsNullOrWhiteSpace(content))
-                    return null;
-
-                var cleanedContent = content
-                    .Replace("```json", "", StringComparison.OrdinalIgnoreCase)
-                    .Replace("```", "")
-                    .Trim();
-
-                var raw = JsonSerializer.Deserialize<RawQueryPlan>(cleanedContent, options);
-
-                if (raw == null)
-                    return null;
-
-                var plan = new QueryPlan
-                {
-                    Entity = raw.Entity ?? "",
-                    OrderBy = raw.OrderBy,
-                    OrderDirection = raw.OrderDirection,
-                    Chat = raw.Chat ?? new ChatMessagePlan(),
-                    Filter = new List<QueryFilter>()
-                };
-
-                if (raw.Filter is JsonElement f && f.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var el in f.EnumerateArray())
-                    {
-                        if (el.ValueKind == JsonValueKind.Object)
-                        {
-                            try
-                            {
-                                var filter = el.Deserialize<QueryFilter>(options);
-                                if (filter != null)
-                                    plan.Filter.Add(filter);
-                            }
-                            catch { }
-                        }
-                    }
-                }
-
-                if (raw.Select is JsonElement s)
-                {
-                    if (s.ValueKind == JsonValueKind.Array)
-                    {
-                        plan.Select = s.EnumerateArray()
-                            .Where(x => x.ValueKind == JsonValueKind.String)
-                            .Select(x => x.GetString()!)
-                            .ToList();
-                    }
-                    else if (s.ValueKind == JsonValueKind.String)
-                    {
-                        plan.Select = s.GetString()!
-                            .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                            .Select(x => x.Trim())
-                            .ToList();
-                    }
-                }
-
-                if (raw.Limit is JsonElement l)
-                {
-                    if (l.ValueKind == JsonValueKind.Number)
-                        plan.Limit = l.GetInt32();
-                    else if (l.ValueKind == JsonValueKind.String &&
-                             int.TryParse(l.GetString(), out var lim))
-                        plan.Limit = lim;
-                }
-
-                return plan;
-            }
-            catch (JsonException ex)
-            {
-                Console.WriteLine("Ollama JSON parse error:");
-                Console.WriteLine(ex.Message);
-                return null;
-            }
+            var rawContent = await response.Content.ReadAsStringAsync();
+            return ParseOllamaResponse(rawContent);
         }
 
         public async Task<(List<object> Data, int Count)> ExecuteQueryPlanAsync(QueryPlan plan)
         {
-            IQueryable queryable;
-
-            var entityMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            if (string.IsNullOrEmpty(plan.Entity))
             {
-                { "User", "ApplicationUser" },
-                { "ApplicationUser", "ApplicationUser" },
-                { "Book", "Book" },
-                { "Books", "Book" }
-            };
-
-            if (!entityMap.TryGetValue(plan.Entity, out var mappedEntity))
-                throw new ArgumentException($"Entity {plan.Entity} not supported.");
-
-            queryable = mappedEntity switch
-            {
-                "ApplicationUser" => _dbContext.Set<ApplicationUser>().AsNoTracking(),
-                "Book" => _dbContext.Set<Domain.Entities.Book>().AsNoTracking(),
-                _ => throw new ArgumentException($"Entity {plan.Entity} not supported.")
-            };
-
-            var propertyMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "reading_status", "ReadingStatus" },
-                { "title", "Title" },
-                { "author", "Author" },
-                { "genre", "Genre" },
-                { "user_id", "UserId" },
-                { "id", "Id" },
-                { "created_at", "CreatedAt" },
-                { "created_by", "CreatedBy" },
-                { "is_deleted", "IsDeleted" },
-
-                { "username", "UserName" },
-                { "name", "Name" },
-                { "email", "Email" },
-                { "created_at_user", "CreatedAt" },
-                { "is_deleted_user", "IsDeleted" }
-            };
-
-            if (plan.Filter != null && plan.Filter.Any())
-            {
-                var filterParts = new List<string>();
-                var values = new List<object>();
-                int index = 0;
-
-                foreach (var filter in plan.Filter)
-                {
-                    var propName = propertyMap.ContainsKey(filter.Field) ? propertyMap[filter.Field] : filter.Field;
-                    var property = queryable.ElementType.GetProperty(propName);
-
-                    if (property == null)
-                    {
-                        Console.WriteLine($"Warning: Property '{filter.Field}' does not exist on entity '{mappedEntity}'");
-                        continue;
-                    }
-
-                    object val;
-
-                    if (filter.Value is JsonElement jsonVal)
-                    {
-                        if (property.PropertyType == typeof(string))
-                            val = jsonVal.GetString() ?? "";
-                        else if (property.PropertyType.IsEnum)
-                            val = Enum.Parse(property.PropertyType, jsonVal.GetString() ?? "");
-                        else if (property.PropertyType == typeof(Guid))
-                            val = Guid.Parse(jsonVal.GetString() ?? "");
-                        else if (property.PropertyType == typeof(int))
-                            val = jsonVal.GetInt32();
-                        else if (property.PropertyType == typeof(bool))
-                            val = jsonVal.GetBoolean();
-                        else if (property.PropertyType == typeof(DateTime))
-                            val = jsonVal.GetDateTime();
-                        else
-                            val = jsonVal.GetRawText();
-                    }
-                    else
-                    {
-                        val = filter.Value?.ToString() ?? "";
-                    }
-
-                    if (val == null || (property.PropertyType == typeof(string) && string.IsNullOrWhiteSpace(val.ToString())))
-                        continue;
-
-                    string clause = "";
-
-                    if (property.PropertyType == typeof(string))
-                    {
-                        val = val.ToString().ToLower();
-                        clause = filter.Operator.ToLower() switch
-                        {
-                            "eq" => $"({propName} != null && {propName}.ToLower() == @{index})",
-                            "contains" => $"({propName} != null && {propName}.ToLower().Contains(@{index}))",
-                            "startswith" => $"({propName} != null && {propName}.ToLower().StartsWith(@{index}))",
-                            "endswith" => $"({propName} != null && {propName}.ToLower().EndsWith(@{index}))",
-                            _ => $"({propName} != null && {propName}.ToLower() == @{index})"
-                        };
-                    }
-                    else
-                    {
-                        clause = filter.Operator.ToLower() switch
-                        {
-                            "eq" => $"{propName} == @{index}",
-                            "gt" => $"{propName} > @{index}",
-                            "lt" => $"{propName} < @{index}",
-                            "gte" => $"{propName} >= @{index}",
-                            "lte" => $"{propName} <= @{index}",
-                            "in" when val is IEnumerable<object> => $"@{index}.Contains({propName})",
-                            _ => $"{propName} == @{index}"
-                        };
-                    }
-
-                    filterParts.Add(clause);
-                    values.Add(val);
-                    index++;
-                }
-
-                if (filterParts.Any())
-                {
-                    var whereClause = string.Join(" && ", filterParts);
-                    queryable = queryable.Where(whereClause, values.ToArray());
-                }
+                return (new List<object>(), 0);
             }
 
-            if (!string.IsNullOrEmpty(plan.OrderBy))
+            IQueryable queryable = MapEntityToSet(plan.Entity);
+
+            if (plan.Filter?.Any() == true)
             {
-                var orderProperty = queryable.ElementType.GetProperty(plan.OrderBy,
-                                            BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+                queryable = ApplyFilters(queryable, plan.Filter);
+            }
 
-                if (orderProperty != null)
-                {
-                    var parameter = Expression.Parameter(queryable.ElementType, "x");
-                    var propertyExpr = Expression.Property(parameter, orderProperty);
-                    var lambda = Expression.Lambda(propertyExpr, parameter);
-
-                    bool desc = plan.OrderDirection?.ToLower() == "desc";
-
-                    queryable = desc
-                        ? Queryable.OrderByDescending((dynamic)queryable, (dynamic)lambda)
-                        : Queryable.OrderBy((dynamic)queryable, (dynamic)lambda);
-                }
-                else
-                {
-                    Console.WriteLine(
-                        $"Warning: OrderBy field '{plan.OrderBy}' does not exist on entity '{mappedEntity}'. Skipping ordering."
-                    );
-                }
+            if (!string.IsNullOrWhiteSpace(plan.OrderBy))
+            {
+                queryable = ApplyOrdering(queryable, plan.OrderBy, plan.OrderDirection);
             }
 
             if (plan.Limit.HasValue)
                 queryable = queryable.Take(plan.Limit.Value);
 
-            if (plan.Select != null && plan.Select.Any())
+            if (plan.Select?.Any() == true)
             {
                 var fields = string.Join(",", plan.Select);
                 queryable = queryable.Select($"new({fields})");
@@ -371,5 +80,179 @@ JSON: {
             var list = await queryable.Cast<object>().ToListAsync();
             return (list, list.Count);
         }
-    }
+
+        #region Helper Methods
+
+        private QueryPlan? ParseOllamaResponse(string json)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                var content = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+
+                if (string.IsNullOrWhiteSpace(content)) return null;
+
+                var cleanedJson = content.Replace("```json", "").Replace("```", "").Trim();
+                var raw = JsonSerializer.Deserialize<RawQueryPlan>(cleanedJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (raw == null) return null;
+
+                return new QueryPlan
+                {
+                    Entity = raw.Entity ?? "",
+                    OrderBy = raw.OrderBy,
+                    OrderDirection = raw.OrderDirection,
+                    Chat = raw.Chat ?? new ChatMessagePlan(),
+                    Limit = ParseLimit(raw.Limit),
+                    Select = ParseSelect(raw.Select),
+                    Filter = ParseFilters(raw.Filter)
+                };
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Ollama Parsing Error: {ex.Message}");
+                return null;
+            }
+        }
+
+        private IQueryable MapEntityToSet(string entityName)
+        {
+            return entityName.ToLower() switch
+            {
+                "book" or "books" => _dbContext.Set<Domain.Entities.Book>().AsNoTracking(),
+                "applicationuser" or "user" => _dbContext.Set<ApplicationUser>().AsNoTracking(),
+                _ => throw new ArgumentException($"Entity '{entityName}' is not supported.")
+            };
+        }
+
+        private List<string>? ParseSelect(object? selectObj)
+        {
+            if (selectObj is not JsonElement element) return null;
+
+            return element.ValueKind switch
+            {
+                JsonValueKind.Array => element.EnumerateArray()
+                  .Where(x => x.ValueKind == JsonValueKind.String)
+                  .Select(x => x.GetString()!)
+                  .ToList(),
+
+                JsonValueKind.String => element.GetString()!
+                  .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                  .Select(x => x.Trim())
+                  .ToList(),
+
+                _ => null
+            };
+        }
+
+        private int? ParseLimit(object? limitObj)
+        {
+            if (limitObj is not JsonElement element) return null;
+
+            if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var val))
+                return val;
+
+            if (element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), out var strVal))
+                return strVal;
+
+            return null;
+        }
+
+        private List<QueryFilter> ParseFilters(object? filterObj)
+        {
+            var list = new List<QueryFilter>();
+            if (filterObj is not JsonElement element || element.ValueKind != JsonValueKind.Array)
+                return list;
+
+            foreach (var item in element.EnumerateArray())
+            {
+                try
+                {
+                    var filter = JsonSerializer.Deserialize<QueryFilter>(item.GetRawText(), new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (filter != null && !string.IsNullOrWhiteSpace(filter.Field))
+                        list.Add(filter);
+                }
+                catch
+                {
+                    continue;
+                }
+            }
+            return list;
+        }
+
+        private IQueryable ApplyFilters(IQueryable query, List<QueryFilter> filters)
+        {
+            var filterParts = new List<string>();
+            var values = new List<object>();
+
+            for (int i = 0; i < filters.Count; i++)
+            {
+                var filter = filters[i];
+                var propName = PropertyMap.GetValueOrDefault(filter.Field, filter.Field);
+                var property = query.ElementType.GetProperty(propName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+
+                if (property == null) continue;
+
+                var val = ConvertJsonValue(filter.Value, property.PropertyType);
+                if (val == null) continue;
+
+                string op = filter.Operator.ToLower();
+                string clause = property.PropertyType == typeof(string)
+                  ? GetStringClause(propName, op, i)
+                  : GetValueClause(propName, op, i);
+
+                filterParts.Add(clause);
+                values.Add(property.PropertyType == typeof(string) ? val.ToString()!.ToLower() : val);
+            }
+
+            return filterParts.Any()
+              ? query.Where(string.Join(" && ", filterParts), values.ToArray())
+              : query;
+        }
+
+        private string GetStringClause(string prop, string op, int idx) => op switch
+        {
+            "contains" => $"{prop}.ToLower().Contains(@{idx})",
+            "startswith" => $"{prop}.ToLower().StartsWith(@{idx})",
+            "endswith" => $"{prop}.ToLower().EndsWith(@{idx})",
+            _ => $"{prop}.ToLower() == @{idx}"
+        };
+
+        private string GetValueClause(string prop, string op, int idx) => op switch
+        {
+            "gt" => $"{prop} > @{idx}",
+            "lt" => $"{prop} < @{idx}",
+            "gte" => $"{prop} >= @{idx}",
+            "lte" => $"{prop} <= @{idx}",
+            _ => $"{prop} == @{idx}"
+        };
+
+        private object? ConvertJsonValue(object? rawValue, Type targetType)
+        {
+            if (rawValue is not JsonElement json) return rawValue;
+
+            return json.ValueKind switch
+            {
+                JsonValueKind.String => targetType == typeof(Guid) ? Guid.Parse(json.GetString()!)
+                           : targetType.IsEnum ? Enum.Parse(targetType, json.GetString()!, true)
+                           : json.GetString(),
+                JsonValueKind.Number => json.GetInt32(),
+                JsonValueKind.True or JsonValueKind.False => json.GetBoolean(),
+                _ => null
+            };
+        }
+
+        private IQueryable ApplyOrdering(IQueryable query, string field, string? direction)
+        {
+            var propName = PropertyMap.GetValueOrDefault(field, field);
+            bool isDescending = direction?.Equals("desc", StringComparison.OrdinalIgnoreCase) ?? false;
+            return query.OrderBy($"{propName} {(isDescending ? "descending" : "ascending")}");
+        }
+
+        #endregion
+    }
 }
